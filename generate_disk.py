@@ -1,6 +1,6 @@
 import math
-
 from pathlib import Path
+from warnings import warn
 
 from svglib.svglib import svg2rlg
 from reportlab.graphics import renderPDF
@@ -36,9 +36,10 @@ def get_polygon_inside_circle_side_length(
 
 
 def get_marker_positions_and_size(
-    disk_diameter_mm: int,
+    disk_diameter_mm: float,
     number_of_marker: int,
-    distance_between_markers_mm: int = 2,
+    number_of_marker_rings: int = 3,
+    max_distance_between_markers_mm: float = 2,
     marker_circle_diameter_reduction_ratio: float = 2,
 ) -> tuple[list[float, float], float]:
     # First iteration to find polygon the fits exactly on the disk radius
@@ -48,11 +49,10 @@ def get_marker_positions_and_size(
     side_length = get_polygon_inside_circle_side_length(
         number_of_marker, disk_diameter_mm
     )
-    marker_radius_mm = side_length / 2 - distance_between_markers_mm
+    marker_radius_mm = side_length / 2 - max_distance_between_markers_mm
     if marker_radius_mm < 0:
-        raise ValueError(
-            "Markers are too close to each other, reduce distance_between_markers_mm!"
-        )
+        marker_radius_mm = side_length / 2
+        warn("Markers are touching, reduce max_distance_between_markers_mm!")
     marker_diameter_mm = 2 * marker_radius_mm
     marker_circle_diameter_mm = (
         disk_diameter_mm - marker_circle_diameter_reduction_ratio * marker_diameter_mm
@@ -65,24 +65,22 @@ def get_marker_positions_and_size(
     side_length = get_polygon_inside_circle_side_length(
         number_of_marker, marker_circle_diameter_mm
     )
-    marker_radius_mm = side_length / 2 - distance_between_markers_mm
+    marker_radius_mm = side_length / 2 - max_distance_between_markers_mm
     if marker_radius_mm < 0:
-        raise ValueError(
-            "Markers are too close to each other, reduce distance_between_markers_mm!"
-        )
+        marker_radius_mm = side_length / 2
+        warn("Markers are touching, reduce max_distance_between_markers_mm!")
 
     return positions, marker_radius_mm
 
 
 def main(
-    disk_diameter_mm: int = 120,
-    marker_radius_mm: int = 10,
-    disk_border_thickness_mm: int = 2,
+    disk_diameter_mm: float = 120,
+    disk_border_thickness_mm: float = 2,
     out_filename: str = "target_disk.pdf",
-    marker_ring_count: int = 3,
+    marker_cctag_ring_count: int = 3,
     add_id: bool = True,
     add_cross: bool = True,
-    cross_ratio: float = 0.7,
+    marker_cross_inner_cctag_ring_ratio: float = 0.7,
 ):
     out_path = Path(__file__).parent.joinpath(out_filename).resolve()
     width, height = LETTER
@@ -90,12 +88,12 @@ def main(
     disk_diameter_mm = disk_diameter_mm * mm
     inner_disk_diameter_mm = disk_diameter_mm - 2 * disk_border_thickness_mm
 
-    if marker_ring_count == 3:
+    if marker_cctag_ring_count == 3:
         input_file = "cctag3.txt"
-    elif marker_ring_count == 4:
+    elif marker_cctag_ring_count == 4:
         input_file = "cctag4.txt"
     else:
-        raise ValueError("marker_ring_count must be 3 or 4")
+        raise ValueError("marker_cctag_ring_count must be 3 or 4")
     with open(input_file) as f:
         number_of_marker = len([_ for _ in f])
 
@@ -170,7 +168,7 @@ def main(
                 count = count + 1
 
             # sanity check
-            if marker_ring_count == 3:
+            if marker_cctag_ring_count == 3:
                 assert count == 5
             else:
                 assert count == 7
@@ -180,11 +178,15 @@ def main(
                 dwg.add(
                     dwg.line(
                         start=(
-                            marker_center[0] - marker_inner_circle_radius * cross_ratio,
+                            marker_center[0]
+                            - marker_inner_circle_radius
+                            * marker_cross_inner_cctag_ring_ratio,
                             marker_center[1],
                         ),
                         end=(
-                            marker_center[0] + marker_inner_circle_radius * cross_ratio,
+                            marker_center[0]
+                            + marker_inner_circle_radius
+                            * marker_cross_inner_cctag_ring_ratio,
                             marker_center[1],
                         ),
                         stroke="gray",
@@ -194,11 +196,15 @@ def main(
                     dwg.line(
                         start=(
                             marker_center[0],
-                            marker_center[1] - marker_inner_circle_radius * cross_ratio,
+                            marker_center[1]
+                            - marker_inner_circle_radius
+                            * marker_cross_inner_cctag_ring_ratio,
                         ),
                         end=(
                             marker_center[0],
-                            marker_center[1] + marker_inner_circle_radius * cross_ratio,
+                            marker_center[1]
+                            + marker_inner_circle_radius
+                            * marker_cross_inner_cctag_ring_ratio,
                         ),
                         stroke="gray",
                     )
