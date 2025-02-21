@@ -73,12 +73,26 @@ def get_marker_positions_and_size(
     return positions, marker_radius_mm
 
 
+def determine_quartile(total_number: int, ind: int) -> int:
+    quartile_size = total_number / 4
+
+    if ind < quartile_size:
+        return 1
+    elif ind < 2 * quartile_size:
+        return 2
+    elif ind < 3 * quartile_size:
+        return 3
+    else:
+        return 4
+
+
 def main(
     disk_diameter_mm: float = 120,
     disk_border_thickness_mm: float = 2,
     out_filename: str = "target_disk.pdf",
     marker_cctag_ring_count: int = 3,
     add_id: bool = True,
+    id_dist_marker_radius_ratio: float = 1.5,
     add_cross: bool = True,
     marker_cross_inner_cctag_ring_ratio: float = 0.7,
 ):
@@ -132,12 +146,50 @@ def main(
 
             # print the id of the marker
             if add_id:
+                id_quartile = determine_quartile(number_of_marker, ind)
+
+                if id_quartile == 1:
+                    id_x = (
+                        marker_center[0]
+                        - marker_radius_mm * id_dist_marker_radius_ratio
+                    )
+                    id_y = (
+                        marker_center[1]
+                        - marker_radius_mm * id_dist_marker_radius_ratio
+                    )
+                elif id_quartile == 2:
+                    id_x = (
+                        marker_center[0]
+                        + marker_radius_mm * id_dist_marker_radius_ratio
+                    )
+                    id_y = (
+                        marker_center[1]
+                        - marker_radius_mm * id_dist_marker_radius_ratio
+                    )
+                elif id_quartile == 3:
+                    id_x = (
+                        marker_center[0]
+                        + marker_radius_mm * id_dist_marker_radius_ratio
+                    )
+                    id_y = (
+                        marker_center[1]
+                        + marker_radius_mm * id_dist_marker_radius_ratio
+                    )
+                else:
+                    id_x = (
+                        marker_center[0]
+                        - marker_radius_mm * id_dist_marker_radius_ratio
+                    )
+                    id_y = (
+                        marker_center[1]
+                        + marker_radius_mm * id_dist_marker_radius_ratio
+                    )
                 dwg.add(
                     dwg.text(
                         text=str(ind + 1),
                         insert=(
-                            marker_center[0] - marker_radius_mm,
-                            marker_center[1] - marker_radius_mm,
+                            id_x,
+                            id_y,
                         ),
                         font_size=font_size,
                     )
